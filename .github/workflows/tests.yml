@@ -1,0 +1,83 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  api:
+    name: API suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run scan:secrets:all
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm test
+        env:
+          KONNECT_PAT: ${{ secrets.KONNECT_PAT }}
+          KONNECT_BASE_URL: ${{ vars.KONNECT_BASE_URL }}
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-api
+          path: playwright-report/
+          retention-days: 7
+
+  ui:
+    name: UI login
+    # Browser login is the least stable part of the suite, so it runs on request
+    # rather than on every push.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:ui
+        env:
+          KONNECT_USERNAME: ${{ secrets.KONNECT_USERNAME }}
+          KONNECT_PASSWORD: ${{ secrets.KONNECT_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-ui
+          path: playwright-report/
+          retention-days: 7
+
+  load:
+    name: k6 smoke
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: grafana/setup-k6-action@v1
+
+      - run: k6 run k6/api-catalog.js
+        env:
+          KONNECT_PAT: ${{ secrets.KONNECT_PAT }}
+          KONNECT_BASE_URL: ${{ vars.KONNECT_BASE_URL }}

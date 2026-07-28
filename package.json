@@ -1,0 +1,34 @@
+{
+  "name": "konnect-api-catalog-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automated tests for the Konnect API Catalog versioning workflow",
+  "scripts": {
+    "test": "cross-env NODE_OPTIONS=--use-system-ca playwright test --project=api",
+    "test:ui": "cross-env NODE_OPTIONS=--use-system-ca playwright test --project=ui",
+    "test:all": "cross-env NODE_OPTIONS=--use-system-ca playwright test",
+    "load": "node k6/run.mjs",
+    "report": "playwright show-report",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "scan:secrets:all": "node scripts/scan-secrets.mjs --all",
+    "prepare": "git config core.hooksPath .githooks || exit 0"
+  },
+  "engines": {
+    "node": ">=22.15"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.0",
+    "@types/node": "^26.1.1",
+    "cross-env": "^10.1.0",
+    "dotenv": "^17.4.2",
+    "eslint": "^10.8.0",
+    "eslint-plugin-playwright": "^2.11.0",
+    "globals": "^17.8.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0"
+  }
+}

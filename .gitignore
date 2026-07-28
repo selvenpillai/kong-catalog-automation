@@ -1,0 +1,22 @@
+node_modules/
+.env
+
+# Per-developer Claude Code overrides. The shared config in settings.json is committed.
+.claude/settings.local.json
+
+# HAR captures from the manual walkthrough. These contain session tokens and,
+# in the case of the login capture, the account password in plaintext.
+hars/
+*.har
+
+test-results/
+playwright-report/
+blob-report/
+
+# Throwaway scripts used to work out the API's behaviour. Kept locally while working,
+# never committed.
+probes/
+
+# Post-mortem reports written when a failing run can't be auto-healed. Per-incident,
+# not committed.
+reports/
