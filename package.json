@@ -4,6 +4,7 @@
   "private": true,
   "description": "Automated tests for the Konnect API Catalog versioning workflow",
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "test": "cross-env NODE_OPTIONS=--use-system-ca playwright test --project=api",
     "test:ui": "cross-env NODE_OPTIONS=--use-system-ca playwright test --project=ui",
     "test:all": "cross-env NODE_OPTIONS=--use-system-ca playwright test",

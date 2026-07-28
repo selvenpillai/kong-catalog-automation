@@ -63,9 +63,20 @@ reliable rather than just convenient:
 
 ## Setup
 
+With Node already installed (see Requirements), one command handles the rest — it checks the
+Node version, installs dependencies, creates `.env` from the template, and asks whether to
+install the Playwright browser the UI test needs:
+
+```bash
+npm run setup
+```
+
+Or do it by hand:
+
 ```bash
 npm install
-cp .env.example .env      # then fill in KONNECT_PAT
+cp .env.example .env                # then fill in KONNECT_PAT
+npx playwright install chromium     # only needed for the UI login test
 ```
 
 The only required variable is `KONNECT_PAT`. Everything else has a sensible default:
@@ -87,7 +98,7 @@ non-US org set `KONNECT_BASE_URL` to `https://eu.api.konghq.com` or
 
 ```bash
 npm test         # API suite, this is the exercise workflow
-npm run test:ui  # browser login, skipped unless credentials are set
+npm run test:ui  # browser login, needs the chromium browser and credentials (skips without either)
 npm run test:all # both
 npm run load     # the same workflow as a k6 scenario, needs k6 installed
 npm run report   # open the HTML report from the last run
