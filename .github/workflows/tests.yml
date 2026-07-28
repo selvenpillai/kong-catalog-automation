@@ -7,8 +7,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  api:
-    name: API suite
+  checks:
+    name: Checks
+    # Safe to run on every push and PR: no secrets, no live org. Installs, scans for
+    # secrets, lints and typechecks.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +27,22 @@ jobs:
       - run: npm run lint
 
       - run: npm run typecheck
+
+  api:
+    name: API suite
+    # Hits the live Konnect org and needs the KONNECT_PAT secret, so it runs on request
+    # from the Actions tab rather than on every push. Fork PRs don't get secrets anyway.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
 
       - run: npm test
         env:

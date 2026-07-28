@@ -171,16 +171,38 @@ operating system's certificate store and resolves it. Two notes:
 
 ## Continuous integration
 
-`.github/workflows/tests.yml` runs the typecheck and the API suite on push and pull
-request. It needs a `KONNECT_PAT` repository secret, and optionally a
-`KONNECT_BASE_URL` repository variable for a non-US region.
+`.github/workflows/tests.yml` runs a `checks` job on every push and pull request:
+`npm ci`, the secret scan, the linter and the typecheck. It needs no secrets and touches no
+live org, so it's safe on forks and stays green without any setup.
 
-Two further jobs run only via *Run workflow* in the Actions tab. The browser login, because
-a hosted login flow is the most likely thing to break for reasons unrelated to the code; it
-needs `KONNECT_USERNAME` and `KONNECT_PASSWORD` secrets. And the k6 smoke run, because
-there's no value in load testing someone else's API on every commit.
+The three jobs that talk to a live org run only via *Run workflow* in the Actions tab, so a
+public repo never hits someone's org on a drive-by push and fork PRs (which don't receive
+secrets) don't fail spuriously:
 
-The HTML report is uploaded as an artifact either way.
+- **API suite** — needs a `KONNECT_PAT` repository secret, and optionally a
+  `KONNECT_BASE_URL` repository variable for a non-US region.
+- **UI login** — the least stable part of the suite; needs `KONNECT_USERNAME` and
+  `KONNECT_PASSWORD` secrets.
+- **k6 smoke** — there's no value in load testing an org on every commit.
+
+The HTML report is uploaded as an artifact from the API and UI jobs.
+
+### Running the live jobs on demand
+
+The live jobs read their credentials from repository secrets, which is GitHub's encrypted,
+log-masked store — never commit a token or paste it into the workflow. Add them once under
+*Settings → Secrets and variables → Actions*:
+
+| Kind | Name | For |
+| --- | --- | --- |
+| Secret | `KONNECT_PAT` | API suite and k6 smoke |
+| Secret | `KONNECT_USERNAME`, `KONNECT_PASSWORD` | UI login |
+| Variable | `KONNECT_BASE_URL` | non-US org (optional) |
+
+For a public repo, prefer a **fine-grained, least-privilege, short-expiry** Konnect token so
+a leaked secret has a small blast radius. Then trigger a job from *Actions → tests → Run
+workflow*, picking the branch. Only the manual (`workflow_dispatch`) jobs run; the `checks`
+job already covers pushes and pull requests.
 
 ## Layout
 
