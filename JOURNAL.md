@@ -94,6 +94,33 @@ So "assert 1.1 is current" cannot read a version off that object. It has to reso
 against the version list, which is what `Konnect.currentVersion()` does. Asserting on the
 summary directly would be a silent false pass.
 
+## Observation: promotion doesn't check the label exists
+
+Because promotion is just a write to the API's `version` field, nothing checks that a
+version actually carries the label you promote to:
+
+```
+PATCH /v3/apis/{id}   { "version": "9.9" }   -> 200
+```
+
+The label is stored, but nothing resolves to it, so `current_version_summary` comes back
+null. The API ends up advertising a current version of `9.9` that points at nothing while
+the real version list is unchanged. Like the delete case below, it's a state the console
+won't let you reach. `version-rules.spec.ts` pins it, so a future server-side check would
+show up here as a clean break.
+
+## Observation: API names are unique per null version
+
+Creating a second API with a name already in use returns 409, but the message is more
+specific than a plain conflict:
+
+```
+409  Only one API with a null version is allowed per API name
+```
+
+The constraint is on name plus null version, not name alone. `contract.spec.ts` pins the
+status and that message, since a bare "409" wouldn't explain the rule.
+
 ## Finding: "implementation" cannot mean what the brief says
 
 `implementations` is a real resource, distinct from versions. `POST
@@ -173,11 +200,33 @@ the suite. It's worth knowing how little it checks:
 | --- | --- |
 | The Petstore fixture | 201, `validation_messages: []` |
 | `{"openapi":"3.0.3"}` with no `info` and no `paths` | 201, `validation_messages: []` |
+| `paths` as a string, or an operation as a string | 201, `validation_messages: []` |
+| A Swagger 2.0 document | 201, `validation_messages: []` |
 | `{"hello":"world"}` | 400, "content must be a valid specification" |
+| `{"openapi":"4.0.0", ...}` | 400, "Unsupported OpenAPI version... Supported versions are 3.0.x and 3.1.x" |
 | Not JSON or YAML at all | 400, "content must be a JSON or YAML object" |
 
-So it establishes that the payload is a specification, not that it is a good one. A spec
-with no operations sails through. Useful as a cheap guard, not as a quality gate.
+So it checks two things — the payload parses, and if it names an `openapi` version it's one
+Konnect supports — and little else. Field types aren't checked: a document whose `paths` is
+a string, or whose operation is a string, still validates clean, as does a Swagger 2.0 file.
+It's a cheap guard that the payload is a specification, not evidence that it's a good one.
+`version-rules.spec.ts` pins the two rejections (non-JSON and unsupported version) and the
+empty-but-valid pass; the loose cases are left unasserted rather than enshrined.
+
+## Observation: the 8 MB size limit is the console's, not the API's
+
+The console's New API dialog states it plainly: *"OpenAPI or AsyncAPI file in YAML or JSON
+with a limit of 8MB."* The API doesn't hold that line. `validate-specification` enforces no
+size cap at all (a 9 MiB document validates clean), and `POST /v3/apis/{id}/versions`
+accepts 8 MiB and 10 MiB uploads without complaint. The only cap that fires is a request
+body limit at the edge, returning a bare `413 request entity too large` with no JSON body
+and storing nothing, and it sits between 10 and 11 MiB — not at 8 MB.
+
+So 8 MB is a client-side guard, the same UI/API split as deleting the current version
+below. Worth surfacing: a spec between 8 and ~10 MiB is rejected by the console but goes
+through the API. `version-rules.spec.ts` pads a valid spec comfortably past the edge limit
+and asserts the 413 and the empty version list, rather than pinning an exact byte count
+that could drift.
 
 ## Observation: the UI guards deleting the current version, the API doesn't
 
@@ -255,11 +304,13 @@ would keep step names in the report while removing the shared state; that would 
 better default in a codebase where people run individual tests all day, and the reason it
 isn't used here is the traceability above.
 
-`version-rules.spec.ts` is the opposite case and is shaped accordingly. Those are four
-independent contract checks, so each takes its own API from the `api` fixture and the file
-declares `mode: 'parallel'`. The validation check needs no API at all, and because Playwright
-fixtures are lazy, it never creates one. Nothing is ordered, and the file runs on four
-workers rather than one.
+`version-rules.spec.ts` and `contract.spec.ts` are the opposite case and are shaped
+accordingly. Those are independent contract checks — version constraints in the first,
+entity-level guarantees (auth, name uniqueness, not-found, method-not-allowed) in the
+second — so each takes its own API from the `api` fixture and both files declare
+`mode: 'parallel'`. Several checks need no API at all (the validation checks, the auth
+rejection, the not-found lookup), and because Playwright fixtures are lazy, they never
+create one. Nothing is ordered, and the files run across workers rather than one.
 
 The general rule the suite follows: the unit of parallelism is the unit of isolation. A
 test can run concurrently exactly when it owns its data, so provisioning belongs in a

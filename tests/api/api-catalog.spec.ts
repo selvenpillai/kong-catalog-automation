@@ -63,8 +63,12 @@ test.describe.serial('API Catalog versioning workflow', () => {
     expect(versions.map((v) => v.version).sort()).toEqual(['1.0', '1.1']);
     expect((await konnect.currentVersion(apiId))?.version).toBe('1.1');
 
-    const stored = await konnect.getVersion(apiId, version.id);
-    expect(operationCount(parseSpec(stored.spec!.content!))).toBe(operationCount(spec));
+    // The extra operation is what makes 1.1 differ from 1.0, so check it landed rather
+    // than trusting a count that a padding change could also satisfy.
+    const stored = parseSpec((await konnect.getVersion(apiId, version.id)).spec!.content!);
+    expect(stored.info.version).toBe('1.1');
+    expect(stored.paths['/store/health']).toBeDefined();
+    expect(operationCount(stored)).toBe(operationCount(spec));
   });
 
   test('re-upserting a version replaces its content instead of adding another', async ({ konnect }) => {
@@ -77,7 +81,9 @@ test.describe.serial('API Catalog versioning workflow', () => {
     const current = await konnect.currentVersion(apiId);
     expect(current?.version).toBe('1.1');
 
-    const stored = await konnect.getVersion(apiId, current!.id);
-    expect(operationCount(parseSpec(stored.spec!.content!))).toBe(operationCount(replacement));
+    // The replacement drops /store/health, so a real content swap leaves it absent.
+    const stored = parseSpec((await konnect.getVersion(apiId, current!.id)).spec!.content!);
+    expect(stored.paths['/store/health']).toBeUndefined();
+    expect(operationCount(stored)).toBe(operationCount(replacement));
   });
 });

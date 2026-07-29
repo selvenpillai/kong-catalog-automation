@@ -128,12 +128,20 @@ teardown, so runs don't collide and nothing accumulates in the org. Set
 `tests/api/console-flows.spec.ts` covers the remaining calls the console makes: creating
 an API and its first version in a single request, deleting a version, and deleting the API.
 
-`tests/api/version-rules.spec.ts` pins down the constraints the workflow relies on, so a
-change in Konnect fails here with a clear message rather than somewhere confusing: a
-version label that disagrees with the spec is rejected, a duplicate label is rejected, a
-document that isn't a specification is rejected, and deleting the current version leaves
-the API with none. These are independent checks, so each takes its own API from the `api`
-fixture and the file runs in parallel.
+`tests/api/version-rules.spec.ts` pins down the version constraints the workflow relies
+on, so a change in Konnect fails here with a clear message rather than somewhere
+confusing: a version label that disagrees with the spec is rejected, a duplicate label is
+rejected, a document that isn't a specification (non-JSON, or an unsupported OpenAPI
+version) is rejected while an empty-but-valid one is accepted, an upload past the request
+body limit comes back as 413, deleting the current version leaves the API with none, and
+promoting to a label no version carries is accepted but resolves to nothing.
+
+`tests/api/contract.spec.ts` covers the entity-level guarantees a client hits first:
+authentication is enforced (401), API names are unique (409) and required (400), an unknown
+API reads as 404, and the wrong method reads as 405.
+
+Both of these are independent checks, so each takes its own API from the `api` fixture
+where it needs one and the files run in parallel.
 
 The two workflow files above are ordered steps sharing one API, which is why they're
 `describe.serial` and why only their first test can be run on its own. `JOURNAL.md`
@@ -211,7 +219,7 @@ fixtures/petstore.json   the provided Petstore OpenAPI document, unmodified
 src/config.ts            environment variables and their defaults
 src/konnect.ts           thin client over the Catalog API
 src/petstore.ts          builds spec variants from the fixture
-tests/api/               the exercise workflow, console flows and version rules
+tests/api/               the exercise workflow, console flows, version rules and contract checks
 tests/ui/                optional browser login
 k6/                      the workflow as a k6 scenario
 probes/                  throwaway scripts used to work out the API's behaviour (gitignored)

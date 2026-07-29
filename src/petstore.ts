@@ -40,8 +40,14 @@ export function petstoreSpecWithHealthCheck(version: string): OpenApiSpec {
   };
 }
 
+const HTTP_METHODS = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']);
+
+/** Counts operations, not paths: a path with both a get and a post is two operations. */
 export function operationCount(spec: OpenApiSpec): number {
-  return Object.keys(spec.paths).length;
+  return Object.values(spec.paths).reduce<number>((total, item) => {
+    if (!item || typeof item !== 'object') return total;
+    return total + Object.keys(item).filter((key) => HTTP_METHODS.has(key.toLowerCase())).length;
+  }, 0);
 }
 
 /** Konnect stores a reformatted copy of the document, so tests compare parsed values. */
