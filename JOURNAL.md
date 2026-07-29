@@ -359,3 +359,22 @@ asks for.
   same state.
 - The browser test asserts the console loads. It doesn't go on to check the API appears in
   the catalog UI, which would be the natural next step if UI coverage mattered here.
+
+## Future work
+
+Not done here, but the natural next steps if this were more than an exercise:
+
+- **Report the product findings.** The delete-current-version, promote-to-unknown-label,
+  and client-only 8 MB guard behaviours are documented above; the next step is filing them
+  with Kong rather than only pinning them in tests.
+- **Schedule the live suites in CI.** They run on demand today. A nightly run against a
+  dedicated test org (its own PAT as a secret) would catch Konnect-side drift without a
+  human triggering it.
+- **A k6 HTML report behind a flag.** Wire the dashboard export into an opt-in `--report`
+  path so a load run can produce a shareable report, leaving the smoke run untouched.
+- **Deeper spec validation coverage.** Validation is shallow (see above); worth probing
+  more malformed shapes and asserting whichever ones Konnect actually rejects.
+- **Rate-limit handling in k6.** Add retry/backoff so a 429 under real load surfaces as a
+  handled case rather than a threshold breach.
+- **UI coverage past login.** Assert a created API appears in the catalog UI, closing the
+  loop between the API suite and the console.
