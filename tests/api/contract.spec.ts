@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { request } from '@playwright/test';
 import { expect, test } from '../fixtures';
+import { ignoreHttpsErrors, konnectBaseUrl } from '../../src/config';
 import type { ApiError } from '../../src/konnect';
 
 /**
@@ -20,6 +22,19 @@ test.describe('API contract', () => {
     });
 
     expect(res.status()).toBe(401);
+  });
+
+  test('rejects a request with no credentials at all', async () => {
+    // A context with no Authorization header, to prove the endpoint isn't open by default.
+    const anonymous = await request.newContext({
+      baseURL: konnectBaseUrl,
+      ignoreHTTPSErrors: ignoreHttpsErrors,
+    });
+    try {
+      expect((await anonymous.get('/v3/apis')).status()).toBe(401);
+    } finally {
+      await anonymous.dispose();
+    }
   });
 
   test('rejects a second API with a name already in use', async ({ konnect, api }) => {

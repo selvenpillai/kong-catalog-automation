@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { expect, test } from '../fixtures';
-import type { ApiError } from '../../src/konnect';
+import type { Api, ApiError } from '../../src/konnect';
 import { petstoreSpec } from '../../src/petstore';
 
 /**
@@ -22,6 +23,29 @@ test.describe('Version rules', () => {
     expect(res.status()).toBe(400);
     const body = (await res.json()) as ApiError;
     expect(JSON.stringify(body.invalid_parameters)).toContain('must match the spec');
+  });
+
+  test('single-call create does not enforce the version/spec match the versions endpoint does', async ({ konnect }) => {
+    // The two-step POST above rejects a mismatch. The single-call create path doesn't:
+    // it takes `version` at face value, builds the version from the spec's info.version,
+    // and reconciles nothing, so the API advertises a current version it doesn't have.
+    const res = await konnect.http.post('/v3/apis', {
+      data: {
+        name: `petstore-mismatch-${randomUUID().slice(0, 8)}`,
+        version: '9.9',
+        spec_content: JSON.stringify(petstoreSpec('1.0.27')),
+      },
+    });
+
+    expect(res.status()).toBe(201);
+    const api = (await res.json()) as Api;
+    try {
+      expect(api.version).toBe('9.9');
+      expect((await konnect.listVersions(api.id)).map((v) => v.version)).toEqual(['1.0.27']);
+      expect((await konnect.getApi(api.id)).current_version_summary).toBeNull();
+    } finally {
+      await konnect.deleteApi(api.id);
+    }
   });
 
   test('rejects a version label that already exists', async ({ konnect, api }) => {

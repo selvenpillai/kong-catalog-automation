@@ -85,6 +85,7 @@ The only required variable is `KONNECT_PAT`. Everything else has a sensible defa
 | --- | --- | --- |
 | `KONNECT_PAT` | Personal access token, used by the API suite | required |
 | `KONNECT_BASE_URL` | Konnect region endpoint | `https://us.api.konghq.com` |
+| `KONNECT_UI_URL` | Console URL, only for the UI test | `https://cloud.konghq.com` |
 | `KONNECT_USERNAME` | Console login, only for the UI test | unset, test skips |
 | `KONNECT_PASSWORD` | Console login, only for the UI test | unset, test skips |
 | `KEEP_TEST_DATA` | Leave the created API in place instead of deleting it | `false` |
@@ -108,9 +109,10 @@ npm run scan:secrets      # staged changes, same check the pre-commit hook runs
 npm run scan:secrets:all  # every tracked file, same check CI runs
 ```
 
-Each run creates its own API named `petstore-e2e-<timestamp>` and deletes it during
-teardown, so runs don't collide and nothing accumulates in the org. Set
-`KEEP_TEST_DATA=true` to leave it behind for inspection.
+Each test creates its own API with a unique, prefixed name (for example
+`petstore-e2e-<timestamp>` for the workflow, or `petstore-<test>-<uuid>` for the parallel
+suites) and deletes it during teardown, so runs don't collide and nothing accumulates in
+the org. Set `KEEP_TEST_DATA=true` to leave them behind for inspection.
 
 ## What the tests cover
 
@@ -121,9 +123,10 @@ teardown, so runs don't collide and nothing accumulates in the org. Set
    the stored version label, spec type and operation count, and that 1.0 is current.
 3. **Upserts a second spec as version 1.1 and sets it current.** Asserts that adding a
    version does *not* promote it, then promotes it explicitly and asserts two versions
-   exist, that they are 1.0 and 1.1, and that 1.1 is current.
+   exist, that they are 1.0 and 1.1, and that 1.1 is current. It also checks the stored 1.1
+   document actually carries the added operation, not just that the count matches.
 4. **Re-upserts an existing version** to cover the update half of "upsert": the content is
-   replaced and no third version appears.
+   replaced (the added operation is gone) and no third version appears.
 
 `tests/api/console-flows.spec.ts` covers the remaining calls the console makes: creating
 an API and its first version in a single request, deleting a version, and deleting the API.
@@ -134,7 +137,9 @@ confusing: a version label that disagrees with the spec is rejected, a duplicate
 rejected, a document that isn't a specification (non-JSON, or an unsupported OpenAPI
 version) is rejected while an empty-but-valid one is accepted, an upload past the request
 body limit comes back as 413, deleting the current version leaves the API with none, and
-promoting to a label no version carries is accepted but resolves to nothing.
+promoting to a label no version carries is accepted but resolves to nothing. It also pins a
+discrepancy: the single-call create path, unlike the two-step upload, doesn't enforce the
+version/spec match.
 
 `tests/api/contract.spec.ts` covers the entity-level guarantees a client hits first:
 authentication is enforced (401), API names are unique (409) and required (400), an unknown

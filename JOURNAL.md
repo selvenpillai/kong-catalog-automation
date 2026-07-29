@@ -57,6 +57,15 @@ console pushes you towards, since its upload dialog pre-fills the version box fr
 Because the label and the document have to agree, `upsertVersion()` takes only the spec
 and reads the label off it. There is no way for the two to drift apart.
 
+One exception, and it's an inconsistency: the rule holds for the two-step `POST
+/v3/apis/{id}/versions`, but the single-call create path does **not** enforce it. Sending
+`POST /v3/apis` with `version: "9.9"` and a `spec_content` whose `info.version` is `1.0.27`
+returns 201: the version is built as `1.0.27`, while the API's `version` field is set to the
+`9.9` you sent, and nothing reconciles them, so `current_version_summary` comes back null.
+It's the same free-form `version` field as the promotion quirk below, reachable at create
+time. `version-rules.spec.ts` pins both sides — the two-step rejection and the single-call
+pass — so the discrepancy is visible rather than buried.
+
 I've asked the recruiter whether a separate 1.1 spec was meant to be supplied. Pending an
 answer, version 1.1 is the same document with one extra operation added, so that the two
 versions differ by more than a label.
