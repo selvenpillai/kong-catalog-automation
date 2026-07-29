@@ -215,12 +215,14 @@ empty-but-valid pass; the loose cases are left unasserted rather than enshrined.
 
 ## Observation: the 8 MB size limit is the console's, not the API's
 
-The console's New API dialog states it plainly: *"OpenAPI or AsyncAPI file in YAML or JSON
-with a limit of 8MB."* The API doesn't hold that line. `validate-specification` enforces no
-size cap at all (a 9 MiB document validates clean), and `POST /v3/apis/{id}/versions`
-accepts 8 MiB and 10 MiB uploads without complaint. The only cap that fires is a request
-body limit at the edge, returning a bare `413 request entity too large` with no JSON body
-and storing nothing, and it sits between 10 and 11 MiB — not at 8 MB.
+The console's New API dialog states it plainly — *"OpenAPI or AsyncAPI file in YAML or JSON
+with a limit of 8MB"* — and enforces it client-side: feeding it an 8.5 MiB file is rejected
+before anything is sent, with *"File is too large. Pick a file smaller than 8MB."* The API
+doesn't hold that line. `validate-specification` enforces no size cap at all (a 9 MiB
+document validates clean), and `POST /v3/apis/{id}/versions` accepts the same 8.5 MiB file
+and a 10 MiB one without complaint. The only cap that fires is a request body limit at the
+edge, returning a bare `413 request entity too large` with no JSON body and storing
+nothing, and it sits between 10 and 11 MiB — not at 8 MB.
 
 So 8 MB is a client-side guard, the same UI/API split as deleting the current version
 below. Worth surfacing: a spec between 8 and ~10 MiB is rejected by the console but goes
